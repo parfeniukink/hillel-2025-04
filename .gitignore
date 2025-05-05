@@ -1,2 +1,4 @@
 .DS_Store
 dump.sql
+venv/
+.idea/
