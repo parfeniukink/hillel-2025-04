@@ -1,104 +1,169 @@
-# asyncio examples
+# Agenda
 
-## basic cancel task
+- Multiprocessing
+- WEB Introduction
+
+# Multiprocessing
+
+- run only in `__main__`
+
+## basic example
+
 ```python
-import asyncio
+import time
+from multiprocessing import Process
 
 
-async def bar():
-    try:
-        print("bar started")
-        await asyncio.sleep(4)
-        print("bar completed")
-    except asyncio.CancelledError as error:
-        print(f"Error: {error}")
+def foo():
+    print("another process started")
+    time.sleep(10)
 
 
-async def foo():
-    files = []
-
-    try:
-        print("foo started")
-        await asyncio.sleep(5)
-        print("foo completed")
-    except asyncio.CancelledError as error:
-        print(f"Error: {error}")
-
-
-
-async def main():
-    loop = asyncio.get_running_loop()
-    task: asyncio.Task = loop.create_task(foo())
-
-    # task.cancel()
-    loop.call_later(delay=2, callback=task.cancel)
-    await task
-
-asyncio.run(main())
+if __name__ == "__main__":
+    process = Process(target=foo)
+    process.run()
 ```
 
-
-## wait_for asyncio
+## communication via `multiprocessing.Queue`
 
 ```python
-import asyncio
+from multiprocessing import Process, Queue
 
 
-async def foo():
-    try:
-        print("foo started")
-        await asyncio.sleep(5)
-        print("foo completed")
-    except asyncio.CancelledError as error:
-        print(f"Error: {error}")
+def worker(q: Queue):
+    q.put("Hello from worker")
 
 
-async def main():
-    await asyncio.wait_for(foo(), timeout=2)
+if __name__ == "__main__":
+    q  = Queue()
+    process = Process(target=worker, args=(q,))
+    process.run()
+    print(q.get())  # output
 
-
-asyncio.run(main())
 ```
 
-
-
-## asyncio.wait()
+## Manager in multiprocessing for other data structures
 
 ```python
-import asyncio
+from multiprocessing import Manager, Process
 
 
-async def callback(name: str, blocking_time: float = 10.0):
-    try:
-        print(f"{name} started. blocking time: {blocking_time}")
-        await asyncio.sleep(blocking_time)
-        # print(f"{name} completed")
-    except asyncio.CancelledError:
-        print(f"Cancelled: {name}")
+def add_student(shared_students, student):
+    shared_students.append(student)
 
 
-async def main():
-    loop = asyncio.get_running_loop()
-    tasks = {
-        loop.create_task(callback(name="foo", blocking_time=5)),
-        loop.create_task(callback(name="bar", blocking_time=2)),
-        loop.create_task(callback(name="baz", blocking_time=0.5)),
-        loop.create_task(callback(name="baz2", blocking_time=0.5)),
-    }
+if __name__ == "__main__":
+    students = []
+    with Manager() as manager:
+        process = Process(
+            target=add_student,
+            args=(
+                students,
+                {"name": "John"},
+            ),
+        )
+        process.run()
 
-    print("created tasks")
+```
 
-    refresh_time = 0.3
+## `multiprocessing.Pool` usage
 
-    while tasks:
-        done, pending = await asyncio.wait(tasks, timeout=refresh_time)
-        if done:
-            tasks -= done
-            print(f"Completed {len(done)} tasks")
-
-        if pending:
-            print(f"Waiting for {len(pending)} tasks")
+```python
+import time
+from multiprocessing import Pool
 
 
-asyncio.run(main())
+def square(x: int):
+    time.sleep(5)
+    return x * x
+
+
+if __name__ == "__main__":
+    with Pool() as pool:
+        results = pool.map(square, [1, 2, 3, 4, 5, 6, 7, 8])
+        print(results)
+```
+
+### students example
+
+```python
+from multiprocessing import Pool
+
+
+def calculate_average(student):
+    avg = sum(student["marks"]) / len(student["marks"])
+    return avg
+
+
+if __name__ == "__main__":
+    students = {}
+
+    with Pool(4) as pool:
+        averages = pool.map(calculate_average, students.values())
+        print(averages)
+```
+
+## Processes creation
+
+1. `fork()`
+   - new process - copy of parent process
+   - fast start
+   - Unix
+   - problematic for CUDA
+2. `spawn()`
+   - new process - created from scratch
+   - slow start
+   - Windows, default on MacOS (python3.8+)
+     - `__name__ == "__main__"`
+3. `forkserver`
+
+```python
+from multiprocessing import get_start_method, set_start_method
+
+
+set_start_method("fork")
+print(get_start_method())
+```
+
+# WEB Introduction
+
+## INTERNET is
+
+- connection of all the computers
+- network of local networks
+- information exchange
+- users tracking
+
+phisical
+
+- computer -> router -> router -> (switch) -> computer
+
+## HTTP Protocol
+
+1. version ()
+2. URL (path)
+3. METHOD
+   1. GET
+   2. POST
+   3. PUT
+   4. DELETE
+4. Status Code
+5. body?
+6. headers
+
+`HTTP GET /users`
+
+```json
+// status: 400
+{
+  "msg": "no password"
+}
+```
+
+```json
+// status: 200
+{
+    "msg": "no password"
+    "error": true
+}
 ```

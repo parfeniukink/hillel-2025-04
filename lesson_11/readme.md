@@ -1,169 +1,72 @@
-# Agenda
-
-- Multiprocessing
-- WEB Introduction
-
-# Multiprocessing
-
-- run only in `__main__`
-
-## basic example
+## aiohttp usage
 
 ```python
-import time
-from multiprocessing import Process
+import asyncio
+from typing import Generator
+import aiohttp
+
+BASE_URL = "https://pokeapi.co/api/v2/pokemon"
+ids: Generator[int, None, None] = [i for i in range(1, 101)]
+
+async def fetch_pokemon(session, id: int):
+    url = f"{BASE_URL}/{id}"
+
+    async with session.get(url) as response:
+        data = await response.json()
+        # print(f"{id}: {response.status}")
+    return data
 
 
-def foo():
-    print("another process started")
-    time.sleep(10)
+async def main():
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_pokemon(session, id) for id in ids]
+        results = await asyncio.gather(*tasks)
+        print(len(results), "results")
 
-
-if __name__ == "__main__":
-    process = Process(target=foo)
-    process.run()
+asyncio.run(main())
 ```
 
-## communication via `multiprocessing.Queue`
+## socket client
+```python
+import socket
+
+# create socket object
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.connect(("google.com", 80))
+
+request = b"GET / HTTP/1.1\r\nHost: exmple.com\r\n\r\n"
+
+
+data = "\n\n"
+data = b"\n\n"
+
+s.sendall(request)
+
+
+response = s.recv(4096)
+
+print(response.decode())
+```
+
+
+## socket server
 
 ```python
-from multiprocessing import Process, Queue
+import socket
 
+# create socket object
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind(("localhost", 8082))
+s.listen()
 
-def worker(q: Queue):
-    q.put("Hello from worker")
+print("Started server on 8080 port...")
 
+conn, addr = s.accept()
+print(f"Connection from {addr}")
 
-if __name__ == "__main__":
-    q  = Queue()
-    process = Process(target=worker, args=(q,))
-    process.run()
-    print(q.get())  # output
+data = conn.recv(1024)
+print(f"Received: {data.decode()}")
 
-```
-
-## Manager in multiprocessing for other data structures
-
-```python
-from multiprocessing import Manager, Process
-
-
-def add_student(shared_students, student):
-    shared_students.append(student)
-
-
-if __name__ == "__main__":
-    students = []
-    with Manager() as manager:
-        process = Process(
-            target=add_student,
-            args=(
-                students,
-                {"name": "John"},
-            ),
-        )
-        process.run()
-
-```
-
-## `multiprocessing.Pool` usage
-
-```python
-import time
-from multiprocessing import Pool
-
-
-def square(x: int):
-    time.sleep(5)
-    return x * x
-
-
-if __name__ == "__main__":
-    with Pool() as pool:
-        results = pool.map(square, [1, 2, 3, 4, 5, 6, 7, 8])
-        print(results)
-```
-
-### students example
-
-```python
-from multiprocessing import Pool
-
-
-def calculate_average(student):
-    avg = sum(student["marks"]) / len(student["marks"])
-    return avg
-
-
-if __name__ == "__main__":
-    students = {}
-
-    with Pool(4) as pool:
-        averages = pool.map(calculate_average, students.values())
-        print(averages)
-```
-
-## Processes creation
-
-1. `fork()`
-   - new process - copy of parent process
-   - fast start
-   - Unix
-   - problematic for CUDA
-2. `spawn()`
-   - new process - created from scratch
-   - slow start
-   - Windows, default on MacOS (python3.8+)
-     - `__name__ == "__main__"`
-3. `forkserver`
-
-```python
-from multiprocessing import get_start_method, set_start_method
-
-
-set_start_method("fork")
-print(get_start_method())
-```
-
-# WEB Introduction
-
-## INTERNET is
-
-- connection of all the computers
-- network of local networks
-- information exchange
-- users tracking
-
-phisical
-
-- computer -> router -> router -> (switch) -> computer
-
-## HTTP Protocol
-
-1. version ()
-2. URL (path)
-3. METHOD
-   1. GET
-   2. POST
-   3. PUT
-   4. DELETE
-4. Status Code
-5. body?
-6. headers
-
-`HTTP GET /users`
-
-```json
-// status: 400
-{
-  "msg": "no password"
-}
-```
-
-```json
-// status: 200
-{
-    "msg": "no password"
-    "error": true
-}
+conn.close()
+s.close()
 ```
