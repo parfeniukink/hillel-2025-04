@@ -1,12 +1,29 @@
-from multiprocessing import get_start_method, set_start_method
+import asyncio
+from typing import Generator
+import aiohttp
 
 
-set_start_method("fork")
-print(get_start_method())
+BASE_URL = "https://pokeapi.co/api/v2/pokemon"
 
-# if __name__ == "__main__":
-#     students = {}
+ids: Generator[int, None, None] = [i for i in range(1, 101)]
 
-#     with Pool(4) as pool:
-#         averages = pool.map(calculate_average, students.values())
-#         print(averages)
+
+async def fetch_pokemon(session, id: int):
+    url = f"{BASE_URL}/{id}"
+
+    async with session.get(url) as response:
+        data = await response.json()
+        # print(f"{id}: {response.status}")
+
+    return data
+
+
+
+async def main():
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_pokemon(session, id) for id in ids]
+        results = await asyncio.gather(*tasks)
+        print(len(results), "results")
+
+
+asyncio.run(main())
